@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from 'cors'
 import dotenv from "dotenv"
 import { router as authRoutes } from "./routes/authRoutes.js";
+import { authMiddleWare } from "./middleware/authMiddleWare.js";
 dotenv.config()
 
 
@@ -24,7 +25,15 @@ app.use(cors({
     credentials : true
 }))
 
- app.use('/', authRoutes)
+
+app.use(authMiddleWare)
+app.use('/', authRoutes)
+
+app.use('/profile',(req,res) =>{
+    return res.json({
+        message : "This is your profile", user : req.user
+    })
+})
 
 
 //app will run at PORT taken from .env

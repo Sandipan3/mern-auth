@@ -28,18 +28,18 @@ router.post('/register',[
 
     const {username , email , password } =  req.body
 
-    //step : H
+    //step : H  (hash)
     try {
             const SALT_COST_FACTOR = parseInt(process.env.SALT_COST_FACTOR) || 10
             const salt = await bcrypt.genSalt(SALT_COST_FACTOR);
             const hashedPassword = await bcrypt.hash(password , salt)
 
-            //step : U
+            //step : U  (user)
             const user = new User({
                 username, email, password : hashedPassword
             })
             
-            //step : S
+            //step : S  (save)
             await user.save()
             return res.status(201).json({
                 message : 'User registration was successful'
@@ -72,12 +72,12 @@ router.post('/login',[
         })
     }
     
-    //steps : U,M,T
+    //steps : D,U,M,T
     
     const {username , email , password } =  req.body
 
     try {
-        //dynamic query
+        //Step :D   (dynamic query)
         const user = await User.findOne({
             $or:[
                 {username : username},
@@ -85,14 +85,14 @@ router.post('/login',[
             ]
         })
     
-        //step : U
+        //step : U  (user)
         if(!user){
             return res.status(401).json({
                 message : "user not found!!"
             })
         }
     
-        //step : M
+        //step : M  (match)
         const match = await bcrypt.compare(password , user.password)
     
         if(!match){
@@ -101,7 +101,7 @@ router.post('/login',[
             })
         }
     
-        //step: T
+        //step: T   (token)
         const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY
         const CRYPTOJS_SECRET_KEY = process.env.CRYPTOJS_SECRET_KEY
     
