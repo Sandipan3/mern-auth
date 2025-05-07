@@ -3,26 +3,43 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import CryptoJS from 'crypto-js'
 import User from '../models/User.js'
+import { check,oneOf,validationResult } from 'express-validator'
 import dotenv from 'dotenv'
 dotenv.config()
 
 export const router = express.Router()
 
 //user registration
-router.post('/register', async(req , res) =>{
+router.post('/register',[
+    check('username','Invalid Username').not().isEmpty(),
+    check('email','Invalid Email').isEmail(),
+    check('password','Please use strong password').isStrongPassword()
+], async(req , res) =>{
+
+
+    //validation
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({
+            errors : errors.array()
+        })
+    }
+     //steps: H,U,S
 
     const {username , email , password } =  req.body
 
-    //password hashing
+    //step : H
     try {
             const SALT_COST_FACTOR = parseInt(process.env.SALT_COST_FACTOR) || 10
             const salt = await bcrypt.genSalt(SALT_COST_FACTOR);
             const hashedPassword = await bcrypt.hash(password , salt)
 
+            //step : U
             const user = new User({
                 username, email, password : hashedPassword
             })
             
+            //step : S
             await user.save()
             return res.status(201).json({
                 message : 'User registration was successful'
@@ -37,3 +54,73 @@ router.post('/register', async(req , res) =>{
     }
 })
 
+
+//user login
+
+router.post('/login',[
+    oneOf([
+        check('username').not().isEmpty(),
+        check('email').isEmail()
+    ],'Incorrect username or password'),
+    check('password','Password is required').isStrongPassword()
+],async(req,res)=>{
+
+    const errors = validationResult(req)
+    if(!errors.isEmpty()){
+        return res.status(400).json({
+            errors : errors.array()
+        })
+    }
+    
+    //steps : U,M,T
+    
+    const {username , email , password } =  req.body
+
+    try {
+        //dynamic query
+        const user = await User.findOne({
+            $or:[
+                {username : username},
+                {email : email}
+            ]
+        })
+    
+        //step : U
+        if(!user){
+            return res.status(401).json({
+                message : "user not found!!"
+            })
+        }
+    
+        //step : M
+        const match = await bcrypt.compare(password , user.password)
+    
+        if(!match){
+            return res.status(401).json({
+                message : "incorrect password"
+            })
+        }
+    
+        //step: T
+        const JWT_SECRET_KEY = process.env.JWT_SECRET_KEY
+        const CRYPTOJS_SECRET_KEY = process.env.CRYPTOJS_SECRET_KEY
+    
+        const payload = {
+            user : {
+                id : user.id
+            }
+        }
+    
+        const token = jwt.sign(payload , JWT_SECRET_KEY, {expiresIn : 1800})
+    
+        const encryptedToken = CryptoJS.AES.encrypt(token , CRYPTOJS_SECRET_KEY).toString()
+    
+        return res.json({token : encryptedToken})
+        
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            message : 'Internal Server Error'
+        })
+    }
+})

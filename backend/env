@@ -1,0 +1,7 @@
+The following environment variables are present in the project :
+
+PORT
+DB_URL
+SALT_COST_FACTOR
+JWT_SECRET_KEY
+CRYPTOJS_SECRET_KEY
